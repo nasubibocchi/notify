@@ -2,11 +2,6 @@
 
 A Flutter sample app demonstrating how to send push notifications using **Firebase Cloud Messaging (FCM)**.
 
-## Snapshot
-
-![Screenshot_1629090419](https://user-images.githubusercontent.com/87467867/129523731-f3c67249-e5b2-4d1c-8a61-594be306c72b.png)
-![Screenshot_1629090425](https://user-images.githubusercontent.com/87467867/129523737-dd98da2b-a5d5-46b1-98b5-13a19c37f628.png)
-
 
 ## Usage
 

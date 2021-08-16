@@ -10,7 +10,7 @@ In order to run this project, you have to follow the steps below:
 1. Clone the project:
    
    ```bash
-   git clone https://github.com/sbis04/notify.git
+   git clone https://github.com/nasubibocchi/notify.git
    ```
 
 2. Complete Firebase project setup for both **Android** & **iOS** platforms by going to the [Firebase console](https://console.firebase.google.com/).

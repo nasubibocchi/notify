@@ -1,135 +1,168 @@
+import 'dart:convert';
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:notify/model/push_notification.dart';
-import 'package:overlay_support/overlay_support.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'addPush.dart';
+
+
+/// Define a top-level named handler which background/terminated messages will
+/// call.
+///
+/// To verify things are working, check out the native platform logs.
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print("Handling a background message: ${message.messageId}");
+  // If you're going to use other Firebase services in the background, such as Firestore,
+  // make sure you call `initializeApp` before using other Firebase services.
+  await Firebase.initializeApp();
+  print("Handling a background message ${message.messageId}");
 }
+
+/// Create a [AndroidNotificationChannel] for heads up notifications
+const AndroidNotificationChannel channel = AndroidNotificationChannel(
+  'high_importance_channel', // id
+  'High Importance Notifications', // title
+  'This channel is used for important notifications.', // description
+  importance: Importance.high,
+  enableVibration: true,
+  playSound: true,
+);
+
+/// Initalize the [FlutterLocalNotificationsPlugin] package.
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
 void main() async {
-  runApp(MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  // Set the background messaging handler early on, as a named top-level function
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  /// Create an Android Notification Channel.
+  ///
+  /// We use this channel in the `AndroidManifest.xml` file to override the
+  /// default FCM channel to enable heads up notifications.
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+
+  /// Update the iOS foreground notification presentation options to allow
+  /// heads up notifications.
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
+  runApp(ProviderScope(child: MessagingExampleApp()));
 }
 
-class MyApp extends StatelessWidget {
+/// Entry point for the example application.
+class MessagingExampleApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return OverlaySupport(
-      child: MaterialApp(
-        title: 'Notify',
-        theme: ThemeData(
-          primarySwatch: Colors.deepPurple,
-        ),
-        debugShowCheckedModeBanner: false,
-        home: HomePage(),
-      ),
+    return MaterialApp(
+      title: 'Messaging Example App',
+      theme: ThemeData.dark(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => Application(),
+        '/addPush': (context) => AddPush(),
+      },
+      // home: Application(),
     );
   }
 }
 
-class HomePage extends StatefulWidget {
+
+// Crude counter to make messages unique
+int _messageCount = 0;
+
+/// push通知送信で送る内容
+String constructFCMPayload(String token) {
+  _messageCount++;
+  return jsonEncode({
+    'token': token,
+    'data': {
+      'via': 'FlutterFire Cloud Messaging!!!',
+      'count': _messageCount.toString(),
+    },
+    'priority': 'high',
+    'notification': {
+      'title': 'Hello FlutterFire!',
+      'body': 'This notification (#$_messageCount) was created via FCM!',
+    },
+  });
+}
+
+///grobal変数としてexportedToken（トークンを代入したもの）を作っておく
+String? exportedToken;
+
+/// Renders the example application.＠stateful widget
+class Application extends StatefulWidget {
+
   @override
-  _HomePageState createState() => _HomePageState();
+  State<StatefulWidget> createState() => _Application();
 }
 
-class _HomePageState extends State<HomePage> {
-  late final FirebaseMessaging _messaging;
-  late int _totalNotifications;
-  PushNotification? _notificationInfo;
-
-  void registerNotification() async {
-    await Firebase.initializeApp();
-    _messaging = FirebaseMessaging.instance;
-
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-    NotificationSettings settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      provisional: false,
-      sound: true,
-    );
-
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print('User granted permission');
-
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        print(
-            'Message title: ${message.notification?.title}, body: ${message.notification?.body}, data: ${message.data}');
-
-        // Parse the message received
-        PushNotification notification = PushNotification(
-          title: message.notification?.title,
-          body: message.notification?.body,
-          dataTitle: message.data['title'],
-          dataBody: message.data['body'],
-        );
-
-        setState(() {
-          _notificationInfo = notification;
-          _totalNotifications++;
-        });
-
-        if (_notificationInfo != null) {
-          // For displaying the notification as an overlay
-          showSimpleNotification(
-            Text(_notificationInfo!.title!),
-            leading: NotificationBadge(totalNotifications: _totalNotifications),
-            subtitle: Text(_notificationInfo!.body!),
-            background: Colors.cyan.shade700,
-            duration: Duration(seconds: 2),
-          );
-        }
-      });
-    } else {
-      print('User declined or has not accepted permission');
-    }
-  }
-
-  // For handling notification when the app is in terminated state
-  checkForInitialMessage() async {
-    await Firebase.initializeApp();
-    RemoteMessage? initialMessage =
-        await FirebaseMessaging.instance.getInitialMessage();
-
-    if (initialMessage != null) {
-      PushNotification notification = PushNotification(
-        title: initialMessage.notification?.title,
-        body: initialMessage.notification?.body,
-        dataTitle: initialMessage.data['title'],
-        dataBody: initialMessage.data['body'],
-      );
-
-      setState(() {
-        _notificationInfo = notification;
-        _totalNotifications++;
-      });
-    }
-  }
+class _Application extends State<Application> {
+  String? _token;
 
   @override
   void initState() {
-    _totalNotifications = 0;
-    registerNotification();
-    checkForInitialMessage();
-
-    // For handling notification when the app is in background
-    // but not terminated
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      PushNotification notification = PushNotification(
-        title: message.notification?.title,
-        body: message.notification?.body,
-        dataTitle: message.data['title'],
-        dataBody: message.data['body'],
-      );
-
-      setState(() {
-        _notificationInfo = notification;
-        _totalNotifications++;
-      });
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      RemoteNotification? notification = message.notification;
+      AndroidNotification? android = message.notification?.android;
+      if (notification != null && android != null) {
+        flutterLocalNotificationsPlugin.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              channel.id,
+              channel.name,
+              channel.description,
+              // TODO add a proper drawable resource to android, for now using
+              //      one that already exists in example app.
+              icon: 'launch_background',
+            ),
+          ),
+        );
+      }
     });
+    ///tokenの取得
+    // FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    //       print('A new onMessageOpenedApp event was published!');
+    //       Navigator.pushNamed(context, '/message',
+    //           arguments: MessageArguments(message, true));
+    //     });
 
+    // String token = FirebaseMessaging.instance.getToken().toString();
+    FirebaseMessaging.instance.getToken().then((token){
+      assert(token != null);
+          setState(() {
+        _token = token!;
+        exportedToken = token;
+      });
+      print('-------------token: $token');
+    });
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
+      print('A new onMessageOpenedApp event was published!');
+      print(message);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          //TODO: 通知をタップしたときに開くページを設定する
+          builder: (context) => Application(),
+        ),
+      );
+    });
     super.initState();
   }
 
@@ -137,74 +170,19 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Notify'),
-        brightness: Brightness.dark,
+        title: Text("Cloud Messaging"),
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'App for capturing Firebase Push Notifications',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 20,
-            ),
-          ),
-          SizedBox(height: 16.0),
-          NotificationBadge(totalNotifications: _totalNotifications),
-          SizedBox(height: 16.0),
-          _notificationInfo != null
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'TITLE: ${_notificationInfo!.dataTitle ?? _notificationInfo!.title}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16.0,
-                      ),
-                    ),
-                    SizedBox(height: 8.0),
-                    Text(
-                      'BODY: ${_notificationInfo!.dataBody ?? _notificationInfo!.body}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16.0,
-                      ),
-                    ),
-                  ],
-                )
-              : Container(),
-        ],
+      body: SingleChildScrollView(
+        child: TextButton(
+          onPressed: () => Navigator.of(context).pushNamed('/addPush'),
+          child: Text('Push通知設定へ'),),
       ),
     );
   }
 }
 
-class NotificationBadge extends StatelessWidget {
-  final int totalNotifications;
 
-  const NotificationBadge({required this.totalNotifications});
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 40.0,
-      height: 40.0,
-      decoration: new BoxDecoration(
-        color: Colors.red,
-        shape: BoxShape.circle,
-      ),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Text(
-            '$totalNotifications',
-            style: TextStyle(color: Colors.white, fontSize: 20),
-          ),
-        ),
-      ),
-    );
-  }
-}
+
+
+

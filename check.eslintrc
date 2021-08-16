@@ -1,0 +1,13 @@
+{
+  "extends": ["standard", "prettier"],
+  "plugins": ["standard", "node", "promise", "prettier"],
+  "env": {
+    "es6": true,
+    "node": true
+  },
+  "rules": {
+    "space-before-function-paren": ["error", "never"],
+    "quotes": ["error", "single"],
+    "semi": ["error"]
+  }
+}

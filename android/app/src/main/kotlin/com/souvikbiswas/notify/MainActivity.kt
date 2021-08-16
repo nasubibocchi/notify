@@ -1,4 +1,4 @@
-package com.souvikbiswas.notify
+package com.example.notify
 
 import io.flutter.embedding.android.FlutterActivity
 

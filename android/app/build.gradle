@@ -35,8 +35,8 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId "com.souvikbiswas.notify"
-        minSdkVersion 16
+        applicationId "com.example.notify"
+        minSdkVersion 23 // 16-> 23
         targetSdkVersion 30
         multiDexEnabled true
         versionCode flutterVersionCode.toInteger()
@@ -58,4 +58,5 @@ flutter {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation "com.google.firebase:firebase-messaging:21.0.1"
 }

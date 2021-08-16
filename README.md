@@ -2,32 +2,6 @@
 
 A Flutter sample app demonstrating how to send push notifications using **Firebase Cloud Messaging (FCM)**.
 
-## Screenshots
-
-Notification while the app is running in the **foreground**:
-
-![](screenshots/foreground_notification.gif)
-
-Notification while the app is running in the **background**:
-
-![](screenshots/background_notification.gif)
-
-## Plugins
-
-The Flutter plugins used in this project are as follows:
-
-- [firebase_core](https://pub.dev/packages/firebase_core), which is required to use any Firebase service with Flutter
-- [firebase_messaging](https://pub.dev/packages/firebase_messaging), which is used for receiving notifications in the app
-- [overlay_support](https://pub.dev/packages/overlay_support), which builds overlay UI
-
-Add the following to your `pubspec.yaml` file:
-
-```yaml
-dependencies:
-  firebase_core: ^1.2.0
-  firebase_messaging: ^10.0.0
-  overlay_support: ^1.2.1
-```
 
 ## Usage
 
